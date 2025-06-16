@@ -14,14 +14,21 @@ const requiredEnvVars = ['MONGODB_URI', 'SESSION_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
-    console.error('❌ Faltan las siguientes variables de entorno:', missingEnvVars.join(', '));
+    console.error('❌ Variables de entorno faltantes:');
+    missingEnvVars.forEach(envVar => {
+        console.error(`   - ${envVar}`);
+    });
+    console.error('\nPor favor, configura estas variables en Railway:');
+    console.error('1. Ve a tu proyecto en Railway');
+    console.error('2. Haz clic en la pestaña "Variables"');
+    console.error('3. Agrega cada variable con su valor correspondiente');
     process.exit(1);
 }
 
 // Middleware
 app.use(cors({
     origin: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' 
-        ? ['https://tu-app.onrender.com', 'http://localhost:2000'] 
+        ? ['https://tu-app.railway.app', 'http://localhost:2000'] 
         : true),
     credentials: true
 }));
