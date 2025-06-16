@@ -3,58 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproductor Musical</title>
+    <title>MusicApp - Tu Reproductor Musical</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="CSS/inicio.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <nav class="barra-navegacion">
-        <div class="contenedor-navegacion">
+    <!-- Overlay para móvil -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Menú lateral -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
             <div class="logo-contenedor">
                 <img src="https://png.pngtree.com/png-clipart/20221027/ourmid/pngtree-music-logo-png-image_6389182.png" alt="Logo Musical" class="logo">
                 <span class="nombre-app">MusicApp</span>
             </div>
-            
-            <ul class="enlaces-navegacion">
-                <li><a href="#" class="boton-cerrar-sesion">Cerrar Sesión</a></li>
-            </ul>
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
 
-            <div class="menu-hamburguesa">
-                <div class="linea"></div>
-                <div class="linea"></div>
-                <div class="linea"></div>
+        <!-- Perfil de usuario -->
+        <div class="perfil-seccion">
+            <div class="perfil-info">
+                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Foto de perfil" class="foto-perfil" id="fotoPerfil">
+                <div class="perfil-detalles">
+                    <h3 class="nombre-usuario" id="nombreUsuario">Carlos Rodríguez</h3>
+                    <p class="estado-usuario">En línea</p>
+                </div>
             </div>
         </div>
-    </nav>
 
-    <main class="contenido-principal">
-        <section class="seccion-busqueda">
-            <div class="contenedor-busqueda">
-                <h1 class="titulo-busqueda">Descubre tu música favorita</h1>
-                <form id="formularioBusqueda" class="formulario-busqueda">
-                    <div class="contenedor-entrada-busqueda">
-                        <i class="fas fa-search icono-busqueda"></i>
-                        <input type="text" id="entradaArtista" placeholder="Busca tu artista favorito..." required>
-                        <button type="submit" class="boton-buscar">
-                            <span>Buscar</span>
-                        </button>
-                    </div>
-                </form>
+        <!-- Navegación principal -->
+        <nav class="sidebar-nav">
+            <ul class="nav-lista">
+                <li class="nav-item">
+                    <button class="nav-link active" id="btnInicio">
+                        <i class="fas fa-home"></i>
+                        <span>Inicio</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="btnFavoritos">
+                        <i class="fas fa-heart"></i>
+                        <span>Favoritos</span>
+                        <span class="contador" id="contadorFavoritos">0</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="btnListas">
+                        <i class="fas fa-list"></i>
+                        <span>Mis Listas</span>
+                        <span class="contador" id="contadorListas">0</span>
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="btnHistorial">
+                        <i class="fas fa-history"></i>
+                        <span>Historial</span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Listas de reproducción rápidas -->
+        <div class="listas-rapidas">
+            <h4 class="seccion-titulo">Listas Recientes</h4>
+            <div class="lista-contenedor" id="listasRapidas">
+                <!-- Se llenarán dinámicamente -->
             </div>
-        </section>
+        </div>
 
-        <section id="resultadosBusqueda" class="seccion-resultados"></section>
+        <!-- Botón de cerrar sesión -->
+        <div class="sidebar-footer">
+            <button class="boton-cerrar-sesion" id="btnCerrarSesion">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Cerrar Sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main class="contenido-principal">
+        <!-- Barra superior móvil -->
+        <header class="header-movil">
+            <button class="menu-hamburguesa" id="menuHamburguesa">
+                <span class="linea"></span>
+                <span class="linea"></span>
+                <span class="linea"></span>
+            </button>
+            <h1 class="titulo-header">MusicApp</h1>
+            <div class="header-acciones">
+                <button class="boton-buscar-movil" id="btnBuscarMovil">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Contenido dinámico -->
+        <div class="contenido-dinamico">
+            <!-- Vista de Inicio -->
+            <section class="vista-seccion active" id="vistaInicio">
+                <div class="seccion-busqueda">
+                    <div class="contenedor-busqueda">
+                        <h1 class="titulo-busqueda">Descubre tu música favorita</h1>
+                        <form id="formularioBusqueda" class="formulario-busqueda">
+                            <div class="contenedor-entrada-busqueda">
+                                <i class="fas fa-search icono-busqueda"></i>
+                                <input 
+                                    type="text" 
+                                    id="entradaArtista" 
+                                    placeholder="Busca tu artista favorito..." 
+                                    required
+                                    aria-label="Buscar artista"
+                                >
+                                <button type="submit" class="boton-buscar">
+                                    <i class="fas fa-search icono-buscar-movil"></i>
+                                    <span class="texto-buscar">Buscar</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div id="resultadosBusqueda" class="seccion-resultados"></div>
+            </section>
+
+            <!-- Vista de Favoritos -->
+            <section class="vista-seccion" id="vistaFavoritos">
+                <div class="seccion-header">
+                    <h2 class="titulo-seccion">
+                        <i class="fas fa-heart"></i>
+                        Mis Favoritos
+                    </h2>
+                    <p class="descripcion-seccion">Tus canciones favoritas en un solo lugar</p>
+                </div>
+                <div id="contenedorFavoritos" class="contenedor-canciones">
+                    <!-- Se llenarán dinámicamente -->
+                </div>
+            </section>
+
+            <!-- Vista de Listas -->
+            <section class="vista-seccion" id="vistaListas">
+                <div class="seccion-header">
+                    <h2 class="titulo-seccion">
+                        <i class="fas fa-list"></i>
+                        Mis Listas de Reproducción
+                    </h2>
+                    <button class="boton-crear-lista" id="btnCrearListaNueva">
+                        <i class="fas fa-plus"></i>
+                        Crear Lista
+                    </button>
+                </div>
+                
+                <div class="crear-lista-form" id="crearListaForm" style="display: none;">
+                    <div class="form-grupo">
+                        <input 
+                            type="text" 
+                            id="nombreNuevaLista" 
+                            placeholder="Nombre de la nueva lista"
+                            aria-label="Nombre de la nueva lista"
+                        >
+                        <div class="form-acciones">
+                            <button id="btnGuardarLista" class="boton-guardar">Guardar</button>
+                            <button id="btnCancelarLista" class="boton-cancelar">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="contenedorListas" class="contenedor-listas">
+                    <!-- Se llenarán dinámicamente -->
+                </div>
+            </section>
+
+            <!-- Vista de Historial -->
+            <section class="vista-seccion" id="vistaHistorial">
+                <div class="seccion-header">
+                    <h2 class="titulo-seccion">
+                        <i class="fas fa-history"></i>
+                        Historial de Reproducción
+                    </h2>
+                    <p class="descripcion-seccion">Canciones que has escuchado recientemente</p>
+                </div>
+                <div id="contenedorHistorial" class="contenedor-canciones">
+                    <!-- Se llenarán dinámicamente -->
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- Modal del reproductor -->
     <div id="contenedorReproductor" class="modal-reproductor" style="display:none;">
         <div class="tarjeta-reproductor">
-            <button class="boton-cerrar" id="cerrarReproductor">
+            <button class="boton-cerrar" id="cerrarReproductor" aria-label="Cerrar reproductor">
                 <i class="fas fa-times"></i>
             </button>
             
             <div class="contenido-reproductor">
-                <img id="imagenCancion" src="/placeholder.svg" alt="Portada del álbum" class="imagen-cancion">
+                <div class="imagen-contenedor">
+                    <img id="imagenCancion" src="/placeholder.svg" alt="Portada del álbum" class="imagen-cancion">
+                </div>
                 
                 <div class="detalles-cancion">
                     <h3 id="nombreArtista" class="nombre-artista"></h3>
@@ -62,27 +212,38 @@
                     <h2 id="nombreCancion" class="nombre-cancion"></h2>
                 </div>
                 
+                <div class="visualizador-audio">
+                    <canvas id="visualizadorOnda" class="visualizador-onda"></canvas>
+                </div>
+                
                 <div class="controles-reproductor">
-                    <button class="boton-control" id="botonAleatorio">
+                    <button class="boton-control" id="botonAleatorio" aria-label="Reproducción aleatoria">
                         <i class="fas fa-random"></i>
                     </button>
-                    <button class="boton-control" id="botonAnterior">
+                    <button class="boton-control" id="botonAnterior" aria-label="Canción anterior">
                         <i class="fas fa-step-backward"></i>
                     </button>
-                    <button class="boton-reproducir" id="botonReproducir">
+                    <button class="boton-reproducir" id="botonReproducir" aria-label="Reproducir o pausar">
                         <i class="fas fa-play"></i>
                     </button>
-                    <button class="boton-control" id="botonSiguiente">
+                    <button class="boton-control" id="botonSiguiente" aria-label="Siguiente canción">
                         <i class="fas fa-step-forward"></i>
                     </button>
-                    <button class="boton-control" id="botonRepetir">
-                        <i class="fas fa-redo-alt"></i>
+                    <button class="boton-control" id="botonFavorito" aria-label="Añadir a favoritos">
+                        <i class="far fa-heart"></i>
                     </button>
                 </div>
                 
                 <div class="contenedor-progreso">
                     <span id="tiempoActual" class="tiempo">0:00</span>
-                    <input type="range" id="barraProgreso" class="barra-progreso" value="0" min="0">
+                    <input 
+                        type="range" 
+                        id="barraProgreso" 
+                        class="barra-progreso" 
+                        value="0" 
+                        min="0"
+                        aria-label="Progreso de la canción"
+                    >
                     <span id="tiempoTotal" class="tiempo">0:00</span>
                 </div>
                 
@@ -94,92 +255,3 @@
     <script src="JS/inicio.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="CSS/inicio.css"> 
-    <title>Document</title>
-</head>
-<body>
-    <nav class="navbar">
-        <div class="container">
-            <img src="https://png.pngtree.com/png-clipart/20221027/ourmid/pngtree-music-logo-png-image_6389182.png" alt="">
-            <ul class="nav-links">
-                <li><a href="">Cerrar Sesion</a></li>
-            </ul>
-
-            <div class="hamburger">
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-            </div>
-        </div>
-    </nav>
-    <div class="search">
-        <form id="searchForm">
-            <div class="search-input-container">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" id="artistInput" placeholder="Busca tu artista favorito..." required>
-            </div>
-            <button type="submit">Buscar</button>
-        </form>
-    </div>
-    <div id="results"></div>
-
-    <div id="playerCardContainer" style="display:none;">
-        <div class="player-card">
-            <span class="close-button" id="closePlayerCard">&times;</span>
-            <img id="playerArtwork" src="" alt="" class="player-artwork">
-            <div class="player-details">
-                <h3 id="playerArtistName"></h3>
-                <p id="playerAlbumName"></p>
-                <h2 id="playerTrackName"></h2>
-            </div>
-            <div class="player-controls">
-                <i class="fas fa-random"></i>
-                <i class="fas fa-step-backward"></i>
-                <div class="play-button-circle">
-                    <i class="fas fa-play"></i>
-                </div>
-                <i class="fas fa-step-forward"></i>
-                <i class="fas fa-redo-alt"></i>
-            </div>
-            <audio id="audioPlayer" controls style="display:none;"></audio>
-            <input type="range" id="progressBar" class="progress-bar" value="0">
-        </div>
-    </div>
-
-    <script src="./JS/inicio.js"></script>
-
-</body>
-</html> -->
