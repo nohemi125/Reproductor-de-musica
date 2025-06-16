@@ -11,7 +11,9 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: true, // Permitir todas las origenes en desarrollo
+    origin: process.env.NODE_ENV === 'production' 
+        ? ['https://tu-app.onrender.com', 'http://localhost:2000'] 
+        : true,
     credentials: true
 }));
 app.use(express.json());
@@ -20,27 +22,81 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // URL de MongoDB
-const mongoUrl = 'mongodb+srv://root:root@cluster0.pulc8fc.mongodb.net/ReproductorMusic?retryWrites=true&w=majority';
+const mongoUrl = process.env.MONGODB_URI || 'mongodb+srv://root:root@cluster0.pulc8fc.mongodb.net/ReproductorMusic?retryWrites=true&w=majority';
 
 // Configuración de sesión
 app.use(session({
-    secret: 'tu_secreto_seguro_para_la_sesion',
+    secret: process.env.SESSION_SECRET || 'tu_secreto_seguro_para_la_sesion',
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: mongoUrl,
-        ttl: 24 * 60 * 60 // 1 día
+        ttl: 24 * 60 * 60, // 1 día
+        autoRemove: 'native',
+        touchAfter: 24 * 3600 // 24 horas
     }),
     cookie: {
-        secure: false, // Cambiar a true en producción con HTTPS
-        maxAge: 24 * 60 * 60 * 1000 // 1 día
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000, // 1 día
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
 }));
 
-// Conexión a MongoDB
-mongoose.connect(mongoUrl)
-    .then(() => console.log('Conectado a MongoDB'))
-    .catch(err => console.error('Error conectando a MongoDB:', err));
+// Conexión a MongoDB con reintentos y mejor manejo de errores
+const connectWithRetry = async () => {
+    const maxRetries = 5;
+    let retries = 0;
+
+    const tryConnect = async () => {
+        try {
+            console.log('Intentando conectar a MongoDB...');
+            console.log('URL de MongoDB:', mongoUrl.replace(/\/\/[^:]+:[^@]+@/, '//****:****@')); // Oculta credenciales en logs
+            
+            await mongoose.connect(mongoUrl, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+                serverSelectionTimeoutMS: 5000,
+                socketTimeoutMS: 45000,
+            });
+            
+            console.log('✅ Conectado exitosamente a MongoDB');
+            
+            // Verificar la conexión
+            const collections = await mongoose.connection.db.listCollections().toArray();
+            console.log('Colecciones disponibles:', collections.map(c => c.name));
+            
+        } catch (err) {
+            console.error('❌ Error conectando a MongoDB:', err.message);
+            retries++;
+            
+            if (retries < maxRetries) {
+                console.log(`Reintentando conexión (${retries}/${maxRetries}) en 5 segundos...`);
+                setTimeout(tryConnect, 5000);
+            } else {
+                console.error('❌ Número máximo de reintentos alcanzado. No se pudo conectar a MongoDB.');
+                process.exit(1); // Terminar la aplicación si no se puede conectar
+            }
+        }
+    };
+
+    tryConnect();
+};
+
+// Manejar eventos de conexión
+mongoose.connection.on('connected', () => {
+    console.log('Mongoose conectado a MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+    console.error('Error en la conexión de Mongoose:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('Mongoose desconectado de MongoDB');
+});
+
+// Intentar conectar
+connectWithRetry();
 
 // Rutas API
 const authRoutes = require('./routes/auth');
@@ -69,12 +125,10 @@ app.get('/api/audio-proxy', async (req, res) => {
             responseType: 'stream'
         });
 
-        // Establecer los headers necesarios
         res.setHeader('Content-Type', response.headers['content-type']);
         res.setHeader('Content-Length', response.headers['content-length']);
         res.setHeader('Accept-Ranges', 'bytes');
 
-        // Pipe la respuesta directamente al cliente
         response.data.pipe(res);
     } catch (error) {
         console.error('Error en el proxy de audio:', error);
@@ -113,6 +167,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 2000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
-    console.log('URL: http://localhost:2000');
+    console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
+    console.log(`🌐 URL: http://localhost:${PORT}`);
 });
