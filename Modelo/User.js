@@ -22,11 +22,35 @@ const userSchema = new mongoose.Schema({
     },
     fotoPerfil: {
         type: String,
-        default: 'imagenes/default-avatar.png'
+        default: 'https://randomuser.me/api/portraits/men/32.jpg'
     },
-    favoritos: [{
+    cancionesFavoritas: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Cancion'
+    }],
+    listasReproduccion: [{
+        nombre: {
+            type: String,
+            required: true
+        },
+        canciones: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Cancion'
+        }],
+        fechaCreacion: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    historialReproduccion: [{
+        cancion: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Cancion'
+        },
+        fechaReproduccion: {
+            type: Date,
+            default: Date.now
+        }
     }],
     createdAt: {
         type: Date,

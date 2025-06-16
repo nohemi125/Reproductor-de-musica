@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const User = require('../Modelo/User');
 
 // Ruta de registro
-router.post('/register', async (req, res) => {
+router.post('/registro', async (req, res) => {
     try {
         const { nombre, email, password } = req.body;
         console.log('Intento de registro para:', email);
@@ -12,7 +13,7 @@ router.post('/register', async (req, res) => {
         const usuarioExistente = await User.findOne({ email });
         if (usuarioExistente) {
             console.log('Usuario ya existe:', email);
-            return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
+            return res.status(400).json({ error: 'El email ya está registrado' });
         }
 
         // Crear nuevo usuario
@@ -26,44 +27,37 @@ router.post('/register', async (req, res) => {
         await usuario.save();
         console.log('Usuario registrado exitosamente:', email);
 
-        res.status(201).json({ 
-            mensaje: 'Usuario registrado exitosamente',
-            usuario: {
-                nombre: usuario.nombre,
-                email: usuario.email
-            }
-        });
+        res.status(201).json({ mensaje: 'Usuario registrado exitosamente' });
     } catch (error) {
         console.error('Error en registro:', error);
-        res.status(500).json({ mensaje: 'Error al registrar usuario' });
+        res.status(500).json({ error: 'Error al registrar usuario' });
     }
 });
 
-// Ruta para iniciar sesión
+// Ruta de login
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         console.log('Intento de login para:', email);
 
-        // Buscar usuario por email
+        // Buscar usuario
         const usuario = await User.findOne({ email });
         if (!usuario) {
             console.log('Usuario no encontrado');
-            return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+            return res.status(401).json({ error: 'Credenciales inválidas' });
         }
 
         // Verificar contraseña
-        const passwordValido = await usuario.compararPassword(password);
+        const passwordValido = await bcrypt.compare(password, usuario.password);
         if (!passwordValido) {
             console.log('Contraseña incorrecta');
-            return res.status(401).json({ mensaje: 'Credenciales inválidas' });
+            return res.status(401).json({ error: 'Credenciales inválidas' });
         }
 
-        // Guardar ID del usuario en la sesión
+        // Crear sesión
         req.session.userId = usuario._id;
-        console.log('ID de usuario guardado en sesión:', usuario._id);
+        console.log('Login exitoso para:', email);
 
-        // Enviar respuesta con información del usuario
         res.json({
             mensaje: 'Login exitoso',
             usuario: {
@@ -74,12 +68,21 @@ router.post('/login', async (req, res) => {
         });
     } catch (error) {
         console.error('Error en login:', error);
-        res.status(500).json({ mensaje: 'Error en el servidor' });
+        res.status(500).json({ error: 'Error al iniciar sesión' });
     }
 });
 
-// Cerrar sesión
-router.post('/cerrar-sesion', (req, res) => {
+// Ruta para verificar sesión
+router.get('/verificar', (req, res) => {
+    if (req.session.userId) {
+        res.json({ autenticado: true });
+    } else {
+        res.json({ autenticado: false });
+    }
+});
+
+// Ruta de logout
+router.post('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
             return res.status(500).json({ error: 'Error al cerrar sesión' });

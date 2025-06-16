@@ -62,26 +62,60 @@ document.addEventListener("DOMContentLoaded", () => {
   let listaCanciones = []
   let indiceCancionActual = 0
   let vistaActual = "inicio"
-  const cancionesFavoritas = JSON.parse(localStorage.getItem("cancionesFavoritas")) || []
-  const listasUsuario = JSON.parse(localStorage.getItem("listasReproduccion")) || []
-  const historialReproduccion = JSON.parse(localStorage.getItem("historialReproduccion")) || []
+  let cancionesFavoritas = []
+  let listasUsuario = []
+  let historialReproduccion = []
 
   // Variables del visualizador
-  let contextoAudio = null
-  let analizador = null
-  let bufferLength = null
-  let dataArray = null
-  let fuenteAudio = null
-  let animacionID = null
+  let audioContext = null
+  let audioSource = null
+  let audioAnalyser = null
+  let animationFrameId = null
+
+  // Variables del modal de listas
+  let cancionParaAgregar = null
+  const modalListas = document.getElementById("modalListas")
+  const modalBody = document.getElementById("modalBody")
 
   // Inicialización
   inicializarApp()
 
-  function inicializarApp() {
-    configurarEventos()
-    actualizarContadores()
-    actualizarListasRapidas()
-    mostrarVista("inicio")
+  async function inicializarApp() {
+    try {
+      await cargarDatosUsuario()
+      configurarEventos()
+      actualizarContadores()
+      actualizarListasRapidas()
+      mostrarVista("inicio")
+    } catch (error) {
+      console.error('Error al inicializar la aplicación:', error)
+      mostrarMensaje('Error al inicializar la aplicación', 'error')
+    }
+  }
+
+  async function cargarDatosUsuario() {
+    try {
+      // Cargar favoritos
+      const responseFavoritos = await fetch('http://localhost:2000/api/favoritos')
+      const dataFavoritos = await responseFavoritos.json()
+      cancionesFavoritas = dataFavoritos.favoritos || []
+
+      // Cargar listas
+      const responseListas = await fetch('http://localhost:2000/api/listas')
+      const dataListas = await responseListas.json()
+      listasUsuario = dataListas.listas || []
+
+      // Cargar historial
+      const responseHistorial = await fetch('http://localhost:2000/api/historial')
+      const dataHistorial = await responseHistorial.json()
+      historialReproduccion = dataHistorial.historial || []
+
+      // Actualizar contadores después de cargar los datos
+      actualizarContadores()
+    } catch (error) {
+      console.error('Error al cargar datos del usuario:', error)
+      mostrarMensaje('Error al cargar datos del usuario', 'error')
+    }
   }
 
   function configurarEventos() {
@@ -106,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btnCancelarLista?.addEventListener("click", ocultarFormularioLista)
 
     // Eventos del reproductor
-    botonReproducir?.addEventListener("click", reproducirAudio)
+    botonReproducir?.addEventListener("click", toggleReproduccion)
     botonCerrar?.addEventListener("click", cerrarReproductor)
     botonFavorito?.addEventListener("click", () => {
       if (cancionActual) toggleFavorito(cancionActual)
@@ -199,236 +233,472 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Funciones de búsqueda
   async function buscarCanciones(evento) {
-    evento.preventDefault()
-    const entradaArtista = document.getElementById("entradaArtista")
-    const artista = entradaArtista.value.trim()
-
-    if (!artista) {
-      mostrarMensaje("Por favor, ingresa el nombre de un artista.", "error")
-      return
+    evento.preventDefault();
+    
+    const terminoBusqueda = document.getElementById('entradaArtista').value.trim();
+    const resultadosContainer = document.getElementById('resultadosBusqueda');
+    
+    if (!terminoBusqueda) {
+        resultadosContainer.innerHTML = `
+            <div class="error">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Por favor, ingresa un término de búsqueda</p>
+            </div>
+        `;
+        return;
     }
 
-    resultadosBusqueda.innerHTML = '<div class="cargando">🎵 Buscando música...</div>'
+    // Mostrar estado de carga
+    resultadosContainer.innerHTML = `
+        <div class="cargando">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Buscando canciones...</p>
+        </div>
+    `;
 
     try {
-      const respuesta = await fetch(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(artista)}&entity=song&limit=20`,
-      )
+        console.log('Enviando búsqueda:', terminoBusqueda);
+        const response = await fetch(`http://localhost:2000/api/buscar?q=${encodeURIComponent(terminoBusqueda)}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            },
+            credentials: 'include'
+        });
 
-      if (!respuesta.ok) {
-        throw new Error(`Error en la solicitud: ${respuesta.status} ${respuesta.statusText}`)
-      }
+        console.log('Respuesta del servidor:', response.status);
+        const data = await response.json();
+        console.log('Datos recibidos:', data);
 
-      const datos = await respuesta.json()
-      listaCanciones = datos.results || []
-      mostrarResultados(listaCanciones)
+        if (response.ok) {
+            if (data.canciones && data.canciones.length > 0) {
+                mostrarResultadosBusqueda(data.canciones);
+            } else {
+                resultadosContainer.innerHTML = `
+                    <div class="no-resultados">
+                        <i class="fas fa-search"></i>
+                        <p>No se encontraron resultados para "${terminoBusqueda}"</p>
+                    </div>
+                `;
+            }
+        } else {
+            throw new Error(data.error || 'Error al buscar canciones');
+        }
     } catch (error) {
-      console.error("Error al buscar canciones:", error)
-      resultadosBusqueda.innerHTML = '<div class="error">❌ Error al buscar canciones. Intenta nuevamente.</div>'
+        console.error('Error en la búsqueda:', error);
+        resultadosContainer.innerHTML = `
+            <div class="error">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Error al buscar canciones. Por favor, intenta nuevamente.</p>
+            </div>
+        `;
     }
   }
 
-  function mostrarResultados(canciones) {
-    resultadosBusqueda.innerHTML = ""
-
-    if (canciones.length === 0) {
-      resultadosBusqueda.innerHTML = '<div class="sin-resultados">🎵 No se encontraron canciones.</div>'
-      return
-    }
-
-    canciones.forEach((cancion, indice) => {
-      const elementoCancion = crearElementoCancion(cancion, indice)
-      resultadosBusqueda.appendChild(elementoCancion)
-    })
-  }
-
-  // Función para crear elemento de canción
-  function crearElementoCancion(cancion, indice, mostrarAcciones = true) {
-    const elementoCancion = document.createElement("div")
-    elementoCancion.className = "elemento-cancion"
-    elementoCancion.style.animationDelay = `${indice * 0.05}s`
-
-    const esFavorita = cancionesFavoritas.some((fav) => fav.trackId === cancion.trackId)
-
-    elementoCancion.innerHTML = `
-      <div class="cancion-header">
-        <img src="${cancion.artworkUrl100 || "/placeholder.svg?height=60&width=60"}" 
-             alt="Portada de ${cancion.trackName || "Canción"}" class="imagen-miniatura">
-        <div class="detalles-cancion-lista">
-          <h3>${cancion.trackName || "Título desconocido"}</h3>
-          <p>${cancion.artistName || "Artista desconocido"} • ${cancion.collectionName || "Álbum desconocido"}</p>
-        </div>
-        <div class="duracion-cancion">
-          ${formatearTiempo(cancion.trackTimeMillis)}
-        </div>
-      </div>
-      ${
-        mostrarAcciones
-          ? `
-        <div class="cancion-acciones">
-          <button class="boton-favorito-lista ${esFavorita ? "activo" : ""}" data-indice="${indice}" 
-                  aria-label="${esFavorita ? "Quitar de favoritos" : "Añadir a favoritos"}">
-            <i class="${esFavorita ? "fas" : "far"} fa-heart"></i>
-          </button>
-          <button class="boton-accion" aria-label="Añadir a lista">
-            <i class="fas fa-plus"></i>
-          </button>
-        </div>
-      `
-          : ""
-      }
-    `
-
-    // Evento para reproducir
-    elementoCancion.addEventListener("click", (e) => {
-      if (e.target.closest(".cancion-acciones")) return
-      indiceCancionActual = indice
-      reproducirCancion(cancion)
-    })
-
-    // Eventos de acciones
-    if (mostrarAcciones) {
-      const botonFavorito = elementoCancion.querySelector(".boton-favorito-lista")
-      botonFavorito?.addEventListener("click", (e) => {
-        e.stopPropagation()
-        toggleFavorito(cancion)
-        actualizarBotonFavorito(botonFavorito, cancion)
-      })
-    }
-
-    return elementoCancion
+  function formatearDuracion(milisegundos) {
+    const minutos = Math.floor(milisegundos / 60000);
+    const segundos = Math.floor((milisegundos % 60000) / 1000);
+    return `${minutos}:${segundos.toString().padStart(2, '0')}`;
   }
 
   // Funciones de favoritos
-  function cargarFavoritos() {
+  async function cargarFavoritos() {
+    const contenedorFavoritos = document.getElementById("contenedorFavoritos")
     contenedorFavoritos.innerHTML = ""
 
     if (cancionesFavoritas.length === 0) {
-      contenedorFavoritos.innerHTML = '<div class="sin-resultados">❤️ No tienes canciones favoritas aún.</div>'
+      contenedorFavoritos.innerHTML = `
+        <div class="sin-resultados">
+          <i class="far fa-heart"></i>
+          <p>No tienes canciones favoritas</p>
+        </div>
+      `
       return
     }
 
     cancionesFavoritas.forEach((cancion, indice) => {
-      const elementoCancion = crearElementoCancion(cancion, indice, false)
-
-      // Agregar botón para quitar de favoritos
-      const accionesDiv = document.createElement("div")
-      accionesDiv.className = "cancion-acciones"
-      accionesDiv.innerHTML = `
-        <button class="boton-accion" aria-label="Quitar de favoritos">
-          <i class="fas fa-heart-broken"></i>
-        </button>
-      `
-
-      const botonQuitar = accionesDiv.querySelector(".boton-accion")
-      botonQuitar.addEventListener("click", (e) => {
-        e.stopPropagation()
-        toggleFavorito(cancion)
-        cargarFavoritos() // Recargar la vista
-      })
-
-      elementoCancion.appendChild(accionesDiv)
+      const elementoCancion = crearElementoCancion(cancion, indice, true)
       contenedorFavoritos.appendChild(elementoCancion)
     })
   }
 
-  function toggleFavorito(cancion) {
-    const indice = cancionesFavoritas.findIndex((fav) => fav.trackId === cancion.trackId)
-
-    if (indice === -1) {
-      // Agregar a favoritos
-      cancionesFavoritas.push({
-        trackId: cancion.trackId,
-        trackName: cancion.trackName,
-        artistName: cancion.artistName,
-        collectionName: cancion.collectionName,
-        artworkUrl100: cancion.artworkUrl100,
-        previewUrl: cancion.previewUrl,
-        trackTimeMillis: cancion.trackTimeMillis,
-      })
-      mostrarMensaje(`"${cancion.trackName}" agregada a favoritos`, "exito")
-    } else {
-      // Quitar de favoritos
-      cancionesFavoritas.splice(indice, 1)
-      mostrarMensaje(`"${cancion.trackName}" eliminada de favoritos`, "exito")
+  function actualizarContadorFavoritos() {
+    if (contadorFavoritos) {
+      contadorFavoritos.textContent = cancionesFavoritas.length
     }
+  }
 
-    // Guardar en localStorage
-    localStorage.setItem("cancionesFavoritas", JSON.stringify(cancionesFavoritas))
+  async function toggleFavorito(cancion) {
+    try {
+      if (!cancion || !cancion._id) {
+        throw new Error("ID de canción no válido")
+      }
 
-    // Actualizar contadores y UI
-    actualizarContadores()
+      const esFavorita = cancionesFavoritas.some((fav) => fav._id === cancion._id)
+      const response = await fetch(`/api/favoritos/${cancion._id}`, {
+        method: esFavorita ? "DELETE" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include"
+      })
 
-    // Actualizar botón del reproductor si es la canción actual
-    if (cancionActual && cancionActual.trackId === cancion.trackId) {
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.mensaje || "Error al actualizar favoritos")
+      }
+
+      // Actualizar la lista local de favoritos
+      if (esFavorita) {
+        cancionesFavoritas = cancionesFavoritas.filter((fav) => fav._id !== cancion._id)
+      } else {
+        cancionesFavoritas.unshift(cancion)
+      }
+
+      // Actualizar contador y botones
+      actualizarContadores()
       actualizarBotonFavoritoReproductor(cancion)
+      
+      // Mostrar mensaje de éxito
+      mostrarMensaje(
+        esFavorita ? "Canción eliminada de favoritos" : "Canción añadida a favoritos",
+        "exito"
+      )
+    } catch (error) {
+      console.error("Error al actualizar favoritos:", error)
+      mostrarMensaje(error.message || "Error al actualizar favoritos", "error")
     }
   }
 
   function actualizarBotonFavorito(boton, cancion) {
-    const esFavorita = cancionesFavoritas.some((fav) => fav.trackId === cancion.trackId)
+    const esFavorita = cancionesFavoritas.some((fav) => fav._id === cancion._id)
     boton.classList.toggle("activo", esFavorita)
     boton.innerHTML = `<i class="${esFavorita ? "fas" : "far"} fa-heart"></i>`
     boton.setAttribute("aria-label", esFavorita ? "Quitar de favoritos" : "Añadir a favoritos")
   }
 
   function actualizarBotonFavoritoReproductor(cancion) {
-    const esFavorita = cancionesFavoritas.some((fav) => fav.trackId === cancion.trackId)
+    const esFavorita = cancionesFavoritas.some((fav) => fav._id === cancion._id)
     botonFavorito.innerHTML = `<i class="${esFavorita ? "fas" : "far"} fa-heart"></i>`
     botonFavorito.classList.toggle("activo", esFavorita)
     botonFavorito.setAttribute("aria-label", esFavorita ? "Quitar de favoritos" : "Añadir a favoritos")
   }
 
   // Funciones de listas de reproducción
-  function cargarListas() {
-    contenedorListas.innerHTML = ""
+  async function cargarListas() {
+    try {
+      const response = await fetch('/api/listas')
+      const data = await response.json()
+      listasUsuario = data.listas || []
 
-    if (listasUsuario.length === 0) {
-      contenedorListas.innerHTML = '<div class="sin-resultados">📝 No tienes listas de reproducción aún.</div>'
-      return
+      contenedorListas.innerHTML = ""
+
+      if (listasUsuario.length === 0) {
+        contenedorListas.innerHTML = '<div class="sin-resultados">📝 No tienes listas de reproducción aún.</div>'
+        return
+      }
+
+      // Si hay una lista seleccionada, mostrar sus canciones
+      const listaSeleccionada = listasUsuario.find(lista => lista._id === vistaActual)
+      if (listaSeleccionada) {
+        mostrarCancionesLista(listaSeleccionada)
+        return
+      }
+
+      // Si no hay lista seleccionada, mostrar todas las listas
+      listasUsuario.forEach((lista, indice) => {
+        const elementoLista = document.createElement("div")
+        elementoLista.className = "elemento-lista"
+        elementoLista.style.animationDelay = `${indice * 0.05}s`
+
+        elementoLista.innerHTML = `
+          <div class="lista-header">
+            <div class="lista-icono-grande">
+              <i class="fas fa-music"></i>
+            </div>
+            <div class="lista-info">
+              <h3>${lista.nombre}</h3>
+              <p>${lista.canciones.length} canciones</p>
+            </div>
+          </div>
+          <div class="lista-acciones">
+            <button class="boton-accion" data-id="${lista._id}" aria-label="Ver canciones">
+              <i class="fas fa-list"></i>
+            </button>
+            <button class="boton-accion" data-id="${lista._id}" aria-label="Reproducir lista">
+              <i class="fas fa-play"></i>
+            </button>
+            <button class="boton-accion" data-id="${lista._id}" aria-label="Editar lista">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="boton-accion" data-id="${lista._id}" aria-label="Eliminar lista">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        `
+
+        // Eventos de acciones
+        const botones = elementoLista.querySelectorAll(".boton-accion")
+        botones[0].addEventListener("click", () => {
+          vistaActual = lista._id
+          mostrarCancionesLista(lista)
+        })
+        botones[1].addEventListener("click", () => reproducirLista(lista))
+        botones[2].addEventListener("click", () => editarLista(lista))
+        botones[3].addEventListener("click", () => eliminarLista(lista._id))
+
+        contenedorListas.appendChild(elementoLista)
+      })
+    } catch (error) {
+      console.error('Error al cargar listas:', error)
+      mostrarMensaje('Error al cargar listas', 'error')
     }
+  }
 
-    listasUsuario.forEach((lista, indice) => {
-      const elementoLista = document.createElement("div")
-      elementoLista.className = "elemento-lista"
-      elementoLista.style.animationDelay = `${indice * 0.05}s`
-
-      elementoLista.innerHTML = `
-        <div class="lista-header">
-          <div class="lista-icono-grande">
-            <i class="fas fa-music"></i>
-          </div>
-          <div class="lista-info">
-            <h3>${lista.nombre}</h3>
-            <p>${lista.canciones.length} canciones</p>
-          </div>
+  function mostrarCancionesLista(lista) {
+    contenedorListas.innerHTML = `
+      <div class="header-lista-canciones">
+        <button class="boton-volver" aria-label="Volver a listas">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <div class="info-lista">
+          <h4>${lista.nombre}</h4>
+          <p class="contador-canciones">${lista.canciones.length} canción${lista.canciones.length !== 1 ? 'es' : ''}</p>
         </div>
-        <div class="lista-acciones">
-          <button class="boton-accion" data-id="${lista.id}" aria-label="Reproducir lista">
-            <i class="fas fa-play"></i>
-          </button>
-          <button class="boton-accion" data-id="${lista.id}" aria-label="Editar lista">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="boton-accion" data-id="${lista.id}" aria-label="Eliminar lista">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      `
+        <button class="boton-reproducir-todo" aria-label="Reproducir toda la lista">
+          <i class="fas fa-play"></i>
+          <span>Reproducir todo</span>
+        </button>
+      </div>
+      <div class="contenedor-canciones-lista">
+        ${lista.canciones.length === 0 
+          ? '<div class="sin-resultados">Esta lista está vacía</div>'
+          : lista.canciones.map((cancion, indice) => `
+              <div class="elemento-cancion-lista" data-indice="${indice}">
+                <div class="numero-cancion">${indice + 1}</div>
+                <div class="cancion-info">
+                  <img src="${cancion.artworkUrl100 || '/placeholder.svg?height=40&width=40'}" 
+                       alt="Portada de ${cancion.trackName}" 
+                       class="imagen-miniatura">
+                  <div class="detalles-cancion">
+                    <h5>${cancion.trackName}</h5>
+                    <p>${cancion.artistName}</p>
+                    <p class="album">${cancion.collectionName}</p>
+                  </div>
+                </div>
+                <div class="duracion-cancion">
+                  ${formatearDuracion(cancion.trackTimeMillis)}
+                </div>
+                <div class="cancion-acciones">
+                  <button class="boton-reproducir-cancion" data-indice="${indice}" aria-label="Reproducir canción">
+                    <i class="fas fa-play"></i>
+                  </button>
+                  <button class="boton-eliminar-cancion" data-indice="${indice}" aria-label="Eliminar de la lista">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+      </div>
+    `
 
-      // Eventos de acciones
-      const botones = elementoLista.querySelectorAll(".boton-accion")
-      botones[0].addEventListener("click", () => reproducirLista(lista))
-      botones[1].addEventListener("click", () => editarLista(lista))
-      botones[2].addEventListener("click", () => eliminarLista(lista.id))
+    // Evento para volver a la vista de listas
+    const botonVolver = contenedorListas.querySelector('.boton-volver')
+    botonVolver.addEventListener('click', () => {
+      vistaActual = "listas"
+      cargarListas()
+    })
 
-      contenedorListas.appendChild(elementoLista)
+    // Evento para reproducir toda la lista
+    const botonReproducirTodo = contenedorListas.querySelector('.boton-reproducir-todo')
+    botonReproducirTodo.addEventListener('click', () => {
+      if (lista.canciones.length > 0) {
+        reproducirLista(lista)
+      }
+    })
+
+    // Eventos para las canciones
+    const elementosCancion = contenedorListas.querySelectorAll('.elemento-cancion-lista')
+    elementosCancion.forEach(elemento => {
+      elemento.addEventListener('click', (e) => {
+        if (!e.target.closest('.cancion-acciones')) {
+          const indice = parseInt(elemento.dataset.indice)
+          reproducirCancion(lista.canciones[indice])
+        }
+      })
+    })
+
+    const botonesReproducir = contenedorListas.querySelectorAll('.boton-reproducir-cancion')
+    const botonesEliminar = contenedorListas.querySelectorAll('.boton-eliminar-cancion')
+
+    botonesReproducir.forEach(boton => {
+      boton.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const indice = parseInt(e.currentTarget.dataset.indice)
+        reproducirCancion(lista.canciones[indice])
+      })
+    })
+
+    botonesEliminar.forEach(boton => {
+      boton.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const indice = parseInt(e.currentTarget.dataset.indice)
+        const cancion = lista.canciones[indice]
+        
+        try {
+          const response = await fetch(`/api/listas/${lista._id}/canciones/${cancion._id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          })
+
+          if (!response.ok) {
+            throw new Error('Error al eliminar la canción de la lista')
+          }
+
+          lista.canciones.splice(indice, 1)
+          mostrarCancionesLista(lista)
+          mostrarMensaje(`"${cancion.trackName}" eliminada de la lista`, "exito")
+        } catch (error) {
+          console.error('Error:', error)
+          mostrarMensaje('Error al eliminar la canción de la lista', 'error')
+        }
+      })
     })
   }
 
-  function mostrarFormularioLista() {
-    crearListaForm.style.display = "block"
-    nombreNuevaLista.focus()
+  function mostrarFormularioLista(cancion) {
+    // Crear el modal de selección de lista
+    const modal = document.createElement('div')
+    modal.className = 'modal-lista'
+    modal.innerHTML = `
+      <div class="modal-contenido">
+        <h3>Añadir a lista de reproducción</h3>
+        <div class="listas-disponibles">
+          ${listasUsuario.length === 0 
+            ? '<p class="sin-listas">No tienes listas de reproducción. Crea una nueva lista.</p>'
+            : listasUsuario.map(lista => `
+                <div class="elemento-lista-seleccion" data-id="${lista._id}">
+                  <div class="lista-info">
+                    <i class="fas fa-music"></i>
+                    <span>${lista.nombre}</span>
+                    <small>${lista.canciones.length} canciones</small>
+                  </div>
+                  <button class="boton-añadir" data-id="${lista._id}">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              `).join('')
+          }
+        </div>
+        <div class="crear-nueva-lista">
+          <input type="text" id="nombreNuevaLista" placeholder="Nombre de la nueva lista">
+          <button id="crearListaNueva">Crear y añadir</button>
+        </div>
+        <button class="boton-cerrar">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `
+
+    document.body.appendChild(modal)
+
+    // Eventos del modal
+    const botonesAñadir = modal.querySelectorAll('.boton-añadir')
+    botonesAñadir.forEach(boton => {
+      boton.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const listaId = boton.dataset.id
+        try {
+          const response = await fetch(`/api/listas/${listaId}/canciones`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ cancionId: cancion._id }),
+            credentials: 'include'
+          })
+
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.mensaje || 'Error al añadir la canción a la lista')
+          }
+
+          mostrarMensaje('Canción añadida a la lista', 'exito')
+          modal.remove()
+          
+          // Actualizar la vista de listas
+          await cargarListas()
+        } catch (error) {
+          console.error('Error:', error)
+          mostrarMensaje(error.message, 'error')
+        }
+      })
+    })
+
+    // Evento para crear nueva lista
+    const botonCrear = modal.querySelector('#crearListaNueva')
+    const inputNombre = modal.querySelector('#nombreNuevaLista')
+    
+    botonCrear.addEventListener('click', async () => {
+      const nombre = inputNombre.value.trim()
+      if (!nombre) {
+        mostrarMensaje('Por favor, ingresa un nombre para la lista', 'error')
+        return
+      }
+
+      try {
+        // Crear la lista
+        const responseCrear = await fetch('/api/listas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nombre }),
+          credentials: 'include'
+        })
+
+        if (!responseCrear.ok) {
+          const data = await responseCrear.json()
+          throw new Error(data.mensaje || 'Error al crear la lista')
+        }
+
+        const data = await responseCrear.json()
+        listasUsuario.push(data.lista)
+
+        // Actualizar contadores y listas rápidas
+        actualizarContadores()
+        actualizarListasRapidas()
+
+        // Si hay una canción para agregar, agregarla a la nueva lista
+        if (cancionParaAgregar) {
+          await fetch(`/api/listas/${data.lista._id}/canciones/${cancionParaAgregar._id}`, {
+            method: "POST",
+            credentials: "include"
+          })
+          cancionParaAgregar = null
+        }
+
+        ocultarFormularioLista()
+        mostrarMensaje("Lista creada exitosamente", "exito")
+        cargarListas()
+      } catch (error) {
+        console.error('Error:', error)
+        mostrarMensaje(error.message, 'error')
+      }
+    })
+
+    // Evento para cerrar el modal
+    const botonCerrar = modal.querySelector('.boton-cerrar')
+    botonCerrar.addEventListener('click', () => {
+      modal.remove()
+    })
+
+    // Cerrar al hacer clic fuera del modal
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove()
+      }
+    })
   }
 
   function ocultarFormularioLista() {
@@ -436,35 +706,51 @@ document.addEventListener("DOMContentLoaded", () => {
     nombreNuevaLista.value = ""
   }
 
-  function crearNuevaLista() {
-    const nombre = nombreNuevaLista.value.trim()
+  async function crearNuevaLista() {
+    try {
+      const nombre = nombreNuevaLista.value.trim()
+      if (!nombre) {
+        mostrarMensaje("Por favor, ingresa un nombre para la lista", "error")
+        return
+      }
 
-    if (!nombre) {
-      mostrarMensaje("Por favor, ingresa un nombre para la lista.", "error")
-      return
+      const response = await fetch("/api/listas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ nombre }),
+        credentials: "include"
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.mensaje || "Error al crear la lista")
+      }
+
+      const data = await response.json()
+      listasUsuario.push(data.lista)
+
+      // Actualizar contadores y listas rápidas
+      actualizarContadores()
+      actualizarListasRapidas()
+
+      // Si hay una canción para agregar, agregarla a la nueva lista
+      if (cancionParaAgregar) {
+        await fetch(`/api/listas/${data.lista._id}/canciones/${cancionParaAgregar._id}`, {
+          method: "POST",
+          credentials: "include"
+        })
+        cancionParaAgregar = null
+      }
+
+      ocultarFormularioLista()
+      mostrarMensaje("Lista creada exitosamente", "exito")
+      cargarListas()
+    } catch (error) {
+      console.error("Error al crear lista:", error)
+      mostrarMensaje(error.message || "Error al crear la lista", "error")
     }
-
-    if (listasUsuario.some((lista) => lista.nombre === nombre)) {
-      mostrarMensaje("Ya existe una lista con ese nombre.", "error")
-      return
-    }
-
-    const nuevaLista = {
-      id: Date.now().toString(),
-      nombre: nombre,
-      canciones: [],
-      fechaCreacion: new Date().toISOString(),
-    }
-
-    listasUsuario.push(nuevaLista)
-    localStorage.setItem("listasReproduccion", JSON.stringify(listasUsuario))
-
-    ocultarFormularioLista()
-    cargarListas()
-    actualizarContadores()
-    actualizarListasRapidas()
-
-    mostrarMensaje(`Lista "${nombre}" creada correctamente.`, "exito")
   }
 
   function reproducirLista(lista) {
@@ -478,20 +764,30 @@ document.addEventListener("DOMContentLoaded", () => {
     reproducirCancion(lista.canciones[0])
   }
 
-  function eliminarLista(listaId) {
-    const indice = listasUsuario.findIndex((l) => l.id === listaId)
+  async function eliminarLista(listaId) {
+    try {
+      const response = await fetch(`/api/listas/${listaId}`, {
+        method: "DELETE",
+        credentials: "include"
+      })
 
-    if (indice !== -1) {
-      const nombreLista = listasUsuario[indice].nombre
-      listasUsuario.splice(indice, 1)
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.mensaje || "Error al eliminar la lista")
+      }
 
-      localStorage.setItem("listasReproduccion", JSON.stringify(listasUsuario))
+      // Actualizar la lista local
+      listasUsuario = listasUsuario.filter(lista => lista._id !== listaId)
 
-      cargarListas()
+      // Actualizar contadores y listas rápidas
       actualizarContadores()
       actualizarListasRapidas()
 
-      mostrarMensaje(`Lista "${nombreLista}" eliminada.`, "exito")
+      mostrarMensaje("Lista eliminada exitosamente", "exito")
+      cargarListas()
+    } catch (error) {
+      console.error("Error al eliminar lista:", error)
+      mostrarMensaje(error.message || "Error al eliminar la lista", "error")
     }
   }
 
@@ -501,47 +797,48 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Funciones de historial
-  function cargarHistorial() {
+  async function cargarHistorial() {
+    const contenedorHistorial = document.getElementById("contenedorHistorial")
     contenedorHistorial.innerHTML = ""
 
     if (historialReproduccion.length === 0) {
-      contenedorHistorial.innerHTML = '<div class="sin-resultados">🕒 No hay historial de reproducción aún.</div>'
+      contenedorHistorial.innerHTML = `
+        <div class="sin-resultados">
+          <i class="fas fa-history"></i>
+          <p>No hay historial de reproducción</p>
+        </div>
+      `
       return
     }
 
-    // Mostrar las últimas 50 canciones del historial
-    const historialReciente = historialReproduccion.slice(-50).reverse()
-
-    historialReciente.forEach((cancion, indice) => {
-      const elementoCancion = crearElementoCancion(cancion, indice, false)
-
-      // Agregar información de fecha
-      const fechaDiv = document.createElement("div")
-      fechaDiv.className = "fecha-reproduccion"
-      fechaDiv.innerHTML = `<small>Reproducida: ${formatearFecha(cancion.fechaReproduccion)}</small>`
-
-      elementoCancion.appendChild(fechaDiv)
+    historialReproduccion.forEach((item, indice) => {
+      const elementoCancion = crearElementoCancion(item.cancion, indice, true)
       contenedorHistorial.appendChild(elementoCancion)
     })
   }
 
-  function agregarAlHistorial(cancion) {
-    const cancionConFecha = {
-      ...cancion,
-      fechaReproduccion: new Date().toISOString(),
-    }
+  async function agregarAlHistorial(cancion) {
+    try {
+      const response = await fetch("/api/historial", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cancionId: cancion._id }),
+        credentials: "include"
+      })
 
-    // Evitar duplicados consecutivos
-    const ultimaCancion = historialReproduccion[historialReproduccion.length - 1]
-    if (!ultimaCancion || ultimaCancion.trackId !== cancion.trackId) {
-      historialReproduccion.push(cancionConFecha)
-
-      // Mantener solo las últimas 100 canciones
-      if (historialReproduccion.length > 100) {
-        historialReproduccion.shift()
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.mensaje || "Error al agregar al historial")
       }
 
-      localStorage.setItem("historialReproduccion", JSON.stringify(historialReproduccion))
+      // Actualizar el historial local
+      const data = await response.json()
+      historialReproduccion = data.historial || []
+    } catch (error) {
+      console.error("Error al agregar al historial:", error)
+      // No mostramos el mensaje de error al usuario para no interrumpir la experiencia
     }
   }
 
@@ -637,23 +934,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function reproducirAudio() {
+    if (audioContext && audioContext.state === 'suspended') {
+      audioContext.resume()
+    }
+    reproductorAudio.play()
+    actualizarIconoReproducir(false)
+    iniciarVisualizador()
+    imagenCancion.classList.add("reproduciendo")
+  }
+
+  function pausarAudio() {
+    reproductorAudio.pause()
+    actualizarIconoReproducir(true)
+    detenerVisualizador()
+    imagenCancion.classList.remove("reproduciendo")
+  }
+
+  function toggleReproduccion() {
     if (reproductorAudio.paused) {
-      reproductorAudio
-        .play()
-        .then(() => {
-          actualizarIconoReproducir(false)
-          iniciarVisualizador()
-          imagenCancion.classList.add("reproduciendo")
-        })
-        .catch((error) => {
-          console.error("Error al reproducir:", error)
-          mostrarMensaje("Error al reproducir la canción.", "error")
-        })
+      reproducirAudio()
     } else {
-      reproductorAudio.pause()
-      actualizarIconoReproducir(true)
-      detenerVisualizador()
-      imagenCancion.classList.remove("reproduciendo")
+      pausarAudio()
     }
   }
 
@@ -739,48 +1040,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Visualizador de audio
   function iniciarVisualizador() {
-    if (!visualizadorOnda) return
-
-    detenerVisualizador()
-
     try {
-      if (!contextoAudio) {
-        contextoAudio = new (window.AudioContext || window.webkitAudioContext)()
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)()
+        audioAnalyser = audioContext.createAnalyser()
+        audioAnalyser.fftSize = 256
       }
 
-      analizador = contextoAudio.createAnalyser()
-      analizador.fftSize = 256
-      bufferLength = analizador.frequencyBinCount
-      dataArray = new Uint8Array(bufferLength)
+      if (!audioSource) {
+        audioSource = audioContext.createMediaElementSource(reproductorAudio)
+        audioSource.connect(audioAnalyser)
+        audioAnalyser.connect(audioContext.destination)
+      }
 
-      // Crear nueva fuente de audio
-      fuenteAudio = contextoAudio.createMediaElementSource(reproductorAudio)
-      fuenteAudio.connect(analizador)
-      analizador.connect(contextoAudio.destination)
-
-      const ctx = visualizadorOnda.getContext("2d")
-      visualizadorOnda.width = visualizadorOnda.offsetWidth
-      visualizadorOnda.height = visualizadorOnda.offsetHeight
+      const bufferLength = audioAnalyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+      const canvas = document.getElementById("visualizadorOnda")
+      const canvasCtx = canvas.getContext("2d")
 
       function dibujarOnda() {
-        animacionID = requestAnimationFrame(dibujarOnda)
+        animationFrameId = requestAnimationFrame(dibujarOnda)
+        audioAnalyser.getByteFrequencyData(dataArray)
 
-        analizador.getByteFrequencyData(dataArray)
+        canvasCtx.fillStyle = "rgb(0, 0, 0)"
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height)
 
-        ctx.clearRect(0, 0, visualizadorOnda.width, visualizadorOnda.height)
-
-        const barWidth = (visualizadorOnda.width / bufferLength) * 2.5
+        const barWidth = (canvas.width / bufferLength) * 2.5
+        let barHeight
         let x = 0
 
         for (let i = 0; i < bufferLength; i++) {
-          const barHeight = (dataArray[i] / 255) * visualizadorOnda.height
+          barHeight = dataArray[i] / 2
 
-          const r = 255 - i * 2
-          const g = 100 + i
-          const b = 200
-
-          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.7)`
-          ctx.fillRect(x, visualizadorOnda.height - barHeight, barWidth, barHeight)
+          canvasCtx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`
+          canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight)
 
           x += barWidth + 1
         }
@@ -793,36 +1086,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function detenerVisualizador() {
-    if (animacionID) {
-      cancelAnimationFrame(animacionID)
-      animacionID = null
-    }
-
-    if (fuenteAudio) {
-      try {
-        fuenteAudio.disconnect()
-        fuenteAudio = null
-      } catch (error) {
-        console.log("Error al desconectar fuente de audio:", error)
-      }
-    }
-
-    if (analizador) {
-      try {
-        analizador.disconnect()
-        analizador = null
-      } catch (error) {
-        console.log("Error al desconectar analizador:", error)
-      }
-    }
-
-    if (contextoAudio) {
-      try {
-        contextoAudio.close()
-        contextoAudio = null
-      } catch (error) {
-        console.log("Error al cerrar contexto de audio:", error)
-      }
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
     }
   }
 
@@ -865,6 +1131,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       listaElement.addEventListener("click", () => {
         mostrarVista("listas")
+        mostrarCancionesLista(lista)
       })
 
       listasRapidas.appendChild(listaElement)
@@ -910,57 +1177,216 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(elementoMensaje)
 
     setTimeout(() => {
-      elementoMensaje.style.animation = "slideInLeft 0.3s ease reverse"
+      elementoMensaje.classList.add("visible")
+    }, 10)
+
+    setTimeout(() => {
+      elementoMensaje.classList.remove("visible")
       setTimeout(() => {
-        if (document.body.contains(elementoMensaje)) {
-          document.body.removeChild(elementoMensaje)
-        }
+        elementoMensaje.remove()
       }, 300)
     }, 3000)
   }
 
-  function manejarTeclado(evento) {
-    if (evento.key === "Escape") {
-      if (contenedorReproductor.style.display === "flex") {
-        cerrarReproductor()
-      } else if (sidebar?.classList.contains("active")) {
-        cerrarSidebar()
-      }
-    }
-
-    // Atajos de teclado para el reproductor
-    if (cancionActual) {
-      switch (evento.key) {
-        case " ":
-          evento.preventDefault()
-          reproducirAudio()
-          break
-        case "ArrowRight":
-          siguienteCancion()
-          break
-        case "ArrowLeft":
-          cancionAnterior()
-          break
-      }
-    }
-  }
-
   function cerrarSesion() {
-    if (confirm("¿Estás seguro de que quieres cerrar sesión?")) {
-      // Limpiar datos de sesión si es necesario
-      mostrarMensaje("Sesión cerrada correctamente", "exito")
-
-      // Aquí podrías redirigir a una página de login
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+    // Mostrar confirmación antes de cerrar sesión
+    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+        // Mostrar mensaje de carga
+        mostrarMensaje('Cerrando sesión...', 'info');
+        
+        // Limpiar datos de sesión
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Error al cerrar sesión');
+            }
+            return response.json();
+        })
+        .then(() => {
+            // Limpiar datos locales
+            cancionesFavoritas = [];
+            listasUsuario = [];
+            historialReproduccion = [];
+            
+            // Mostrar mensaje de éxito
+            mostrarMensaje('Sesión cerrada exitosamente', 'exito');
+            
+            // Redirigir a la página de inicio de sesión
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 1000);
+        })
+        .catch(error => {
+            console.error('Error al cerrar sesión:', error);
+            mostrarMensaje('Error al cerrar sesión. Por favor, intenta nuevamente.', 'error');
+        });
     }
   }
 
-  // Responsive - Ajustar sidebar en cambio de tamaño de ventana
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 768) {
-      cerrarSidebar()
+  function mostrarResultadosBusqueda(canciones) {
+    const resultadosContainer = document.getElementById('resultadosBusqueda')
+    resultadosContainer.innerHTML = ''
+
+    if (!canciones || canciones.length === 0) {
+      resultadosContainer.innerHTML = `
+        <div class="no-resultados">
+          <i class="fas fa-search"></i>
+          <p>No se encontraron resultados</p>
+        </div>
+      `
+      return
     }
-  })
+
+    // Actualizar la lista de canciones con los resultados de búsqueda
+    listaCanciones = canciones
+    indiceCancionActual = 0
+
+    canciones.forEach((cancion, indice) => {
+      const elementoCancion = document.createElement('div')
+      elementoCancion.className = 'elemento-cancion'
+      elementoCancion.style.animationDelay = `${indice * 0.05}s`
+
+      elementoCancion.innerHTML = `
+        <div class="cancion-header">
+          <img src="${cancion.artworkUrl100}" alt="${cancion.trackName}" class="imagen-miniatura">
+          <div class="detalles-cancion">
+            <h3>${cancion.trackName}</h3>
+            <p>${cancion.artistName}</p>
+            <p class="album">${cancion.collectionName}</p>
+          </div>
+        </div>
+        <div class="cancion-acciones">
+          <button class="boton-accion" aria-label="Reproducir">
+            <i class="fas fa-play"></i>
+          </button>
+          <button class="boton-accion" aria-label="Añadir a favoritos">
+            <i class="${cancionesFavoritas.some(fav => fav.trackId === cancion.trackId) ? 'fas' : 'far'} fa-heart"></i>
+          </button>
+          <button class="boton-accion" aria-label="Añadir a lista">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      `
+
+      // Eventos de los botones
+      const botones = elementoCancion.querySelectorAll('.boton-accion')
+      
+      // Botón reproducir
+      botones[0].addEventListener('click', (e) => {
+        e.stopPropagation()
+        reproducirCancion(cancion)
+      })
+
+      // Botón favorito
+      botones[1].addEventListener('click', (e) => {
+        e.stopPropagation()
+        toggleFavorito(cancion)
+        actualizarBotonFavorito(botones[1], cancion)
+      })
+
+      // Botón añadir a lista
+      botones[2].addEventListener('click', (e) => {
+        e.stopPropagation()
+        mostrarFormularioLista(cancion)
+      })
+
+      // Click en la canción
+      elementoCancion.addEventListener('click', () => {
+        reproducirCancion(cancion)
+      })
+
+      resultadosContainer.appendChild(elementoCancion)
+    })
+  }
+
+  function crearElementoCancion(cancion, indice, mostrarAcciones = true) {
+    const elementoCancion = document.createElement('div')
+    elementoCancion.className = 'elemento-cancion'
+    elementoCancion.style.animationDelay = `${indice * 0.05}s`
+
+    elementoCancion.innerHTML = `
+      <div class="cancion-header">
+        <img src="${cancion.artworkUrl100}" alt="${cancion.trackName}" class="imagen-miniatura">
+        <div class="detalles-cancion">
+          <h3>${cancion.trackName}</h3>
+          <p>${cancion.artistName}</p>
+          <p class="album">${cancion.collectionName}</p>
+        </div>
+      </div>
+      ${mostrarAcciones ? `
+        <div class="cancion-acciones">
+          <button class="boton-accion" aria-label="Reproducir">
+            <i class="fas fa-play"></i>
+          </button>
+          <button class="boton-accion" aria-label="Añadir a favoritos">
+            <i class="${cancionesFavoritas.some(fav => fav.trackId === cancion.trackId) ? 'fas' : 'far'} fa-heart"></i>
+          </button>
+          <button class="boton-accion" aria-label="Añadir a lista">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      ` : ''}
+    `
+
+    // Eventos de los botones si se muestran acciones
+    if (mostrarAcciones) {
+      const botones = elementoCancion.querySelectorAll('.boton-accion')
+      
+      // Botón reproducir
+      botones[0].addEventListener('click', (e) => {
+        e.stopPropagation()
+        reproducirCancion(cancion)
+      })
+
+      // Botón favorito
+      botones[1].addEventListener('click', (e) => {
+        e.stopPropagation()
+        toggleFavorito(cancion)
+        actualizarBotonFavorito(botones[1], cancion)
+      })
+
+      // Botón añadir a lista
+      botones[2].addEventListener('click', (e) => {
+        e.stopPropagation()
+        mostrarFormularioLista(cancion)
+      })
+    }
+
+    // Click en la canción
+    elementoCancion.addEventListener('click', () => {
+      reproducirCancion(cancion)
+    })
+
+    return elementoCancion
+  }
+
+  function manejarTeclado(evento) {
+    // Solo manejar eventos si el reproductor está visible
+    if (!reproductor.classList.contains("visible")) return
+
+    switch (evento.code) {
+      case "Space":
+        evento.preventDefault()
+        toggleReproduccion()
+        break
+      case "ArrowRight":
+        evento.preventDefault()
+        siguienteCancion()
+        break
+      case "ArrowLeft":
+        evento.preventDefault()
+        cancionAnterior()
+        break
+      case "Escape":
+        evento.preventDefault()
+        cerrarReproductor()
+        break
+    }
+  }
+
+  // Inicializar la aplicación
+  inicializarApp()
 })

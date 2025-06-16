@@ -1,64 +1,59 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const expressSession = require('express-session');
-const path = require('path');
 const cors = require('cors');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+const path = require('path');
 const axios = require('axios');
-require('dotenv').config({ path: './config.env' });
+require('dotenv').config();
 
 const app = express();
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Configuración de CORS
 app.use(cors({
-    origin: true,
+    origin: true, // Permitir todas las origenes en desarrollo
     credentials: true
 }));
+app.use(express.json());
+
+// Servir archivos estáticos desde la carpeta public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// URL de MongoDB
+const mongoUrl = 'mongodb+srv://root:root@cluster0.pulc8fc.mongodb.net/ReproductorMusic?retryWrites=true&w=majority';
 
 // Configuración de sesión
-app.use(expressSession({
-    secret: process.env.SESSION_SECRET || 'tu_secreto_seguro_para_la_sesion',
+app.use(session({
+    secret: 'tu_secreto_seguro_para_la_sesion',
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: mongoUrl,
+        ttl: 24 * 60 * 60 // 1 día
+    }),
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 horas
+        secure: false, // Cambiar a true en producción con HTTPS
+        maxAge: 24 * 60 * 60 * 1000 // 1 día
     }
 }));
 
 // Conexión a MongoDB
-const DB = process.env.DB_CONNECTION;
-if (!DB) {
-    console.error('Error: La URI de MongoDB no está definida en las variables de entorno');
-    process.exit(1);
-}
+mongoose.connect(mongoUrl)
+    .then(() => console.log('Conectado a MongoDB'))
+    .catch(err => console.error('Error conectando a MongoDB:', err));
 
-console.log('Intentando conectar a MongoDB...');
-mongoose.connect(DB, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
-    family: 4
-})
-.then(() => {
-    console.log('✅ Conectado exitosamente a MongoDB Atlas');
-})
-.catch(err => {
-    console.error('❌ Error conectando a MongoDB:', err.message);
-    process.exit(1);
-});
-
-// Importar rutas
+// Rutas API
 const authRoutes = require('./routes/auth');
 const favoritosRoutes = require('./routes/favoritos');
+const listasRoutes = require('./routes/listas');
+const historialRoutes = require('./routes/historial');
+const buscarRoutes = require('./routes/buscar');
 
-// Montar rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/favoritos', favoritosRoutes);
+app.use('/api/listas', listasRoutes);
+app.use('/api/historial', historialRoutes);
+app.use('/api/buscar', buscarRoutes);
 
 // Ruta de proxy para audio
 app.get('/api/audio-proxy', async (req, res) => {
@@ -87,35 +82,37 @@ app.get('/api/audio-proxy', async (req, res) => {
     }
 });
 
-// Servir archivos estáticos
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Ruta para la página principal
+// Rutas para las páginas
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Ruta para la página de inicio
 app.get('/inicio', (req, res) => {
-    if (!req.session.userId) {
-        return res.redirect('/');
-    }
     res.sendFile(path.join(__dirname, 'public', 'inicio.html'));
 });
 
-// Middleware para manejar errores 404
-app.use((req, res, next) => {
-    console.log('Ruta no encontrada:', req.method, req.url);
-    res.status(404).json({ mensaje: 'Ruta no encontrada' });
+app.get('/registro', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
-// Middleware para manejar errores
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Manejo de errores 404
+app.use((req, res) => {
+    console.log('Ruta no encontrada:', req.method, req.url);
+    res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// Manejo de errores generales
 app.use((err, req, res, next) => {
     console.error('Error en el servidor:', err);
-    res.status(500).json({ mensaje: 'Error en el servidor' });
+    res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+const PORT = process.env.PORT || 2000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
+    console.log('URL: http://localhost:2000');
 });

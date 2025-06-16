@@ -1,31 +1,60 @@
 const mongoose = require('mongoose');
 
 const cancionSchema = new mongoose.Schema({
-    titulo: {
+    trackId: {
         type: String,
-        required: [true, 'El título es requerido'],
-        trim: true
+        required: true,
+        unique: true
     },
-    artista: {
+    trackName: {
         type: String,
-        required: [true, 'El artista es requerido'],
-        trim: true
+        required: true
     },
-    url: {
+    artistName: {
         type: String,
-        required: [true, 'La URL de la canción es requerida']
+        required: true
     },
-    duracion: {
+    collectionName: {
         type: String,
-        default: '00:00'
+        required: true
     },
-    imagen: {
+    artworkUrl100: {
         type: String,
-        default: 'imagenes/default-song.png'
+        required: true
+    },
+    previewUrl: {
+        type: String,
+        required: true
+    },
+    trackTimeMillis: {
+        type: Number,
+        required: true
+    },
+    primaryGenreName: {
+        type: String,
+        required: true
+    },
+    releaseDate: {
+        type: Date,
+        required: true
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
+
+// Método para formatear la duración
+cancionSchema.methods.formatearDuracion = function() {
+    const minutos = Math.floor(this.trackTimeMillis / 60000);
+    const segundos = Math.floor((this.trackTimeMillis % 60000) / 1000);
+    return `${minutos}:${segundos.toString().padStart(2, '0')}`;
+};
+
+// Método para obtener la URL de la imagen en mejor calidad
+cancionSchema.methods.getArtworkUrl = function() {
+    return this.artworkUrl100.replace('100x100', '600x600');
+};
 
 const Cancion = mongoose.model('Cancion', cancionSchema);
 

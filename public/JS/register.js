@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             console.log('Enviando solicitud de registro...');
-            const response = await fetch('/api/auth/register', {
+            const response = await fetch('http://localhost:2000/api/auth/registro', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Registro exitoso');
                 window.location.href = '/index.html';
             } else {
-                alert(data.mensaje || 'Error en el registro');
+                alert(data.error || 'Error en el registro');
             }
         } catch (error) {
             console.error('Error en el registro:', error);
