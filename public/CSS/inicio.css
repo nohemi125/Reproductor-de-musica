@@ -1070,6 +1070,8 @@ body {
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
+    width: 100%;
+    max-width: 300px;
   }
 
   .sidebar.active {
@@ -1091,23 +1093,23 @@ body {
 
   .contenido-principal {
     margin-left: 0;
-    padding-top: var(--header-height);
+    padding: 1rem;
   }
 
   .vista-seccion {
-    padding: 1.5rem 1rem;
+    padding: 1rem;
   }
 
   .titulo-busqueda {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
 
   .contenedor-entrada-busqueda {
-    flex-direction: row;
+    width: 100%;
   }
 
   .boton-buscar {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
   }
 
   .texto-buscar {
@@ -1119,52 +1121,46 @@ body {
   }
 
   .contenedor-canciones,
-  .seccion-resultados {
-    grid-template-columns: 1fr;
-  }
-
   .contenedor-listas {
     grid-template-columns: 1fr;
   }
 
   .seccion-header {
     flex-direction: column;
-    align-items: flex-start;
+    gap: 1rem;
   }
 
   .form-grupo {
-    flex-direction: column;
-    align-items: stretch;
+    width: 100%;
   }
 
   .form-grupo input {
-    min-width: auto;
+    width: 100%;
   }
 
   .header-lista-canciones {
-    padding: 0.75rem 0;
-    margin-bottom: 1.5rem;
+    padding: 0.5rem;
   }
 
   .header-lista-canciones h4 {
-    font-size: 1.25rem;
+    font-size: 1rem;
   }
 
   .elemento-cancion-lista {
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 
   .cancion-info {
-    gap: 0.75rem;
+    flex: 1;
   }
 
   .elemento-cancion-lista .imagen-miniatura {
-    width: 45px;
-    height: 45px;
+    width: 40px;
+    height: 40px;
   }
 
   .elemento-cancion-lista .detalles-cancion h5 {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
 
   .elemento-cancion-lista .detalles-cancion p {
@@ -1172,42 +1168,40 @@ body {
   }
 
   .elemento-cancion-lista .cancion-acciones {
-    opacity: 1; /* Siempre visible en móvil */
+    gap: 0.5rem;
   }
 
   .boton-reproducir-cancion,
   .boton-eliminar-cancion {
-    width: 32px;
-    height: 32px;
-    font-size: 0.8rem;
+    padding: 0.5rem;
+    font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
   .vista-seccion {
-    padding: 1rem 0.75rem;
+    padding: 0.5rem;
   }
 
   .titulo-busqueda {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
 
   .titulo-seccion {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
   }
 
   .tarjeta-reproductor {
-    width: 95%;
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .imagen-contenedor {
-    width: 150px;
-    height: 150px;
+    width: 200px;
+    height: 200px;
   }
 
   .controles-reproductor {
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
   .boton-reproducir {
@@ -1223,17 +1217,16 @@ body {
   }
 
   .header-lista-canciones {
-    gap: 0.75rem;
+    padding: 0.5rem;
   }
-  
+
   .boton-volver {
-    width: 36px;
-    height: 36px;
+    padding: 0.5rem;
     font-size: 0.9rem;
   }
 
   .header-lista-canciones h4 {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
   }
 
   .elemento-cancion-lista {
@@ -1245,8 +1238,8 @@ body {
   }
 
   .elemento-cancion-lista .imagen-miniatura {
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
   }
 
   .elemento-cancion-lista .cancion-acciones {
@@ -1255,9 +1248,54 @@ body {
 
   .boton-reproducir-cancion,
   .boton-eliminar-cancion {
-    width: 30px;
-    height: 30px;
-    font-size: 0.75rem;
+    padding: 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  /* Mejoras para el reproductor en móviles */
+  .modal-reproductor {
+    padding: 0;
+  }
+
+  .tarjeta-reproductor {
+    border-radius: 0;
+    height: 100vh;
+    max-height: none;
+  }
+
+  .imagen-contenedor {
+    margin: 1rem auto;
+  }
+
+  .controles-reproductor {
+    padding: 1rem;
+  }
+
+  .barra-progreso {
+    width: 100%;
+  }
+
+  .tiempo {
+    font-size: 0.8rem;
+  }
+}
+
+/* Ajustes para dispositivos táctiles */
+@media (hover: none) {
+  .boton-control:hover,
+  .boton-reproducir:hover,
+  .boton-accion:hover,
+  .nav-link:hover {
+    transform: none;
+    background: none;
+  }
+
+  .boton-control:active,
+  .boton-reproducir:active,
+  .boton-accion:active,
+  .nav-link:active {
+    transform: scale(0.95);
+    opacity: 0.8;
   }
 }
 
