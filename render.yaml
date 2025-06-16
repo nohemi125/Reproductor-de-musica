@@ -11,5 +11,7 @@ services:
         sync: false
       - key: SESSION_SECRET
         sync: false
+      - key: CLIENT_URL
+        sync: false
     healthCheckPath: /
     autoDeploy: true 

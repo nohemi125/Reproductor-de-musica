@@ -9,11 +9,20 @@ require('dotenv').config();
 
 const app = express();
 
+// Verificar variables de entorno requeridas
+const requiredEnvVars = ['MONGODB_URI', 'SESSION_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    console.error('❌ Faltan las siguientes variables de entorno:', missingEnvVars.join(', '));
+    process.exit(1);
+}
+
 // Middleware
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
+    origin: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' 
         ? ['https://tu-app.onrender.com', 'http://localhost:2000'] 
-        : true,
+        : true),
     credentials: true
 }));
 app.use(express.json());
@@ -22,11 +31,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // URL de MongoDB
-const mongoUrl = process.env.MONGODB_URI || 'mongodb+srv://root:root@cluster0.pulc8fc.mongodb.net/ReproductorMusic?retryWrites=true&w=majority';
+const mongoUrl = process.env.MONGODB_URI;
 
 // Configuración de sesión
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'tu_secreto_seguro_para_la_sesion',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
