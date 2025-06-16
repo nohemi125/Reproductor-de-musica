@@ -74,7 +74,3 @@ reproductor/
 
 
 ---
-
-<div align="center">
-Hecho con ❤️ por [Tu Nombre]
-</div> 
