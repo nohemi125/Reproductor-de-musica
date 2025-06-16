@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 // Esquema del usuario
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true }, //tipo texto, obligatorio y único (no se puede repetir).
     password: { type: String, required: true }
 });
 
@@ -22,3 +22,6 @@ userSchema.methods.comparePassword = async function (password) {
 };
 
 module.exports = mongoose.model('User', userSchema);
+
+
+// 3132jovr7va5lto677yjzoymadpi

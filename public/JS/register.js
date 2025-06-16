@@ -1,17 +1,15 @@
 // Selecciona el formulario
 const loginForm = document.getElementById('loginForm');
 
-// Maneja el evento de envío del formulario
 loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Evita que la página se recargue
+    e.preventDefault(); 
 
-    // Obtén los valores de los campos
     const name = document.getElementById('name').value;
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
 
-
+s
     if (!name || !email || !password) {
         alert('Por favor, completa todos los campos.');
         return;
@@ -20,7 +18,6 @@ loginForm.addEventListener('submit', async (e) => {
   
 
     try {
-        // Envía los datos al backend usando fetch
         const response = await fetch('/api/auth/register', {
             method: 'POST',
             headers: {
@@ -33,8 +30,7 @@ loginForm.addEventListener('submit', async (e) => {
 
         if (response.ok) {
             alert('Registro exitoso');
-            // Redirige a otra página después del inicio de sesión
-            window.location.href = '/index.html'; // Cambia esto según tu flujo
+            window.location.href = '/index.html'; 
         } else {
             alert(data.message || 'Error al registrar usuario');
         }

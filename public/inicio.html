@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor Musical</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="CSS/inicio.css">
+</head>
+<body>
+    <nav class="barra-navegacion">
+        <div class="contenedor-navegacion">
+            <div class="logo-contenedor">
+                <img src="https://png.pngtree.com/png-clipart/20221027/ourmid/pngtree-music-logo-png-image_6389182.png" alt="Logo Musical" class="logo">
+                <span class="nombre-app">MusicApp</span>
+            </div>
+            
+            <ul class="enlaces-navegacion">
+                <li><a href="#" class="boton-cerrar-sesion">Cerrar Sesión</a></li>
+            </ul>
+
+            <div class="menu-hamburguesa">
+                <div class="linea"></div>
+                <div class="linea"></div>
+                <div class="linea"></div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="contenido-principal">
+        <section class="seccion-busqueda">
+            <div class="contenedor-busqueda">
+                <h1 class="titulo-busqueda">Descubre tu música favorita</h1>
+                <form id="formularioBusqueda" class="formulario-busqueda">
+                    <div class="contenedor-entrada-busqueda">
+                        <i class="fas fa-search icono-busqueda"></i>
+                        <input type="text" id="entradaArtista" placeholder="Busca tu artista favorito..." required>
+                        <button type="submit" class="boton-buscar">
+                            <span>Buscar</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="resultadosBusqueda" class="seccion-resultados"></section>
+    </main>
+
+    <!-- Modal del reproductor -->
+    <div id="contenedorReproductor" class="modal-reproductor" style="display:none;">
+        <div class="tarjeta-reproductor">
+            <button class="boton-cerrar" id="cerrarReproductor">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="contenido-reproductor">
+                <img id="imagenCancion" src="/placeholder.svg" alt="Portada del álbum" class="imagen-cancion">
+                
+                <div class="detalles-cancion">
+                    <h3 id="nombreArtista" class="nombre-artista"></h3>
+                    <p id="nombreAlbum" class="nombre-album"></p>
+                    <h2 id="nombreCancion" class="nombre-cancion"></h2>
+                </div>
+                
+                <div class="controles-reproductor">
+                    <button class="boton-control" id="botonAleatorio">
+                        <i class="fas fa-random"></i>
+                    </button>
+                    <button class="boton-control" id="botonAnterior">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button class="boton-reproducir" id="botonReproducir">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="boton-control" id="botonSiguiente">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                    <button class="boton-control" id="botonRepetir">
+                        <i class="fas fa-redo-alt"></i>
+                    </button>
+                </div>
+                
+                <div class="contenedor-progreso">
+                    <span id="tiempoActual" class="tiempo">0:00</span>
+                    <input type="range" id="barraProgreso" class="barra-progreso" value="0" min="0">
+                    <span id="tiempoTotal" class="tiempo">0:00</span>
+                </div>
+                
+                <audio id="reproductorAudio" style="display:none;"></audio>
+            </div>
+        </div>
+    </div>
+
+    <script src="JS/inicio.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="CSS/inicio.css"> 
+    <title>Document</title>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <img src="https://png.pngtree.com/png-clipart/20221027/ourmid/pngtree-music-logo-png-image_6389182.png" alt="">
+            <ul class="nav-links">
+                <li><a href="">Cerrar Sesion</a></li>
+            </ul>
+
+            <div class="hamburger">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </div>
+    </nav>
+    <div class="search">
+        <form id="searchForm">
+            <div class="search-input-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="artistInput" placeholder="Busca tu artista favorito..." required>
+            </div>
+            <button type="submit">Buscar</button>
+        </form>
+    </div>
+    <div id="results"></div>
+
+    <div id="playerCardContainer" style="display:none;">
+        <div class="player-card">
+            <span class="close-button" id="closePlayerCard">&times;</span>
+            <img id="playerArtwork" src="" alt="" class="player-artwork">
+            <div class="player-details">
+                <h3 id="playerArtistName"></h3>
+                <p id="playerAlbumName"></p>
+                <h2 id="playerTrackName"></h2>
+            </div>
+            <div class="player-controls">
+                <i class="fas fa-random"></i>
+                <i class="fas fa-step-backward"></i>
+                <div class="play-button-circle">
+                    <i class="fas fa-play"></i>
+                </div>
+                <i class="fas fa-step-forward"></i>
+                <i class="fas fa-redo-alt"></i>
+            </div>
+            <audio id="audioPlayer" controls style="display:none;"></audio>
+            <input type="range" id="progressBar" class="progress-bar" value="0">
+        </div>
+    </div>
+
+    <script src="./JS/inicio.js"></script>
+
+</body>
+</html> -->
