@@ -78,20 +78,41 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalBody = document.getElementById("modalBody")
 
   // Inicialización
-  inicializarApp()
-
-  async function inicializarApp() {
-    try {
-      await cargarDatosUsuario()
-      configurarEventos()
-      actualizarContadores()
-      actualizarListasRapidas()
-      mostrarVista("inicio")
-    } catch (error) {
-      console.error('Error al inicializar la aplicación:', error)
-      mostrarMensaje('Error al inicializar la aplicación', 'error')
-    }
+async function inicializarApp() {
+  try {
+    await mostrarNombreUsuario(); 
+    await cargarDatosUsuario();
+    configurarEventos();
+    actualizarContadores();
+    actualizarListasRapidas();
+    mostrarVista("inicio");
+  } catch (error) {
+    console.error('Error al inicializar la aplicación:', error);
+    mostrarMensaje('Error al inicializar la aplicación', 'error');
   }
+}
+
+// Nueva función para mostrar el nombre del usuario logueado
+async function mostrarNombreUsuario() {
+  try {
+    const response = await fetch('/api/auth/usuario', { credentials: 'include' });
+    const data = await response.json();
+    if (data.usuario && data.usuario.nombre) {
+      const nombreUsuario = document.getElementById('nombreUsuario');
+      if (nombreUsuario) {
+        nombreUsuario.textContent = data.usuario.nombre;
+      }
+
+
+    }
+  } catch (error) {
+    console.error('No se pudo obtener el usuario:', error);
+  }
+}
+
+
+
+
 
   async function cargarDatosUsuario() {
     try {

@@ -14,7 +14,7 @@ const requiredEnvVars = ['MONGODB_URI', 'SESSION_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
-    console.error('❌ Variables de entorno faltantes:');
+    console.error('Variables de entorno faltantes:');
     missingEnvVars.forEach(envVar => {
         console.error(`   - ${envVar}`);
     });
@@ -68,28 +68,32 @@ const connectWithRetry = async () => {
             console.log('Intentando conectar a MongoDB...');
             console.log('URL de MongoDB:', mongoUrl.replace(/\/\/[^:]+:[^@]+@/, '//****:****@')); // Oculta credenciales en logs
             
-            await mongoose.connect(mongoUrl, {
+            await mongoose.connect(process.env.MONGODB_URI, {
                 useNewUrlParser: true,
                 useUnifiedTopology: true,
-                serverSelectionTimeoutMS: 5000,
-                socketTimeoutMS: 45000,
+                ssl: true,
+                tls: true,
+                tlsAllowInvalidCertificates: false,
+                tlsAllowInvalidHostnames: false,
+                retryWrites: true,
+                w: 'majority'
             });
             
-            console.log('✅ Conectado exitosamente a MongoDB');
+            console.log('✅ Conexión a MongoDB establecida');
             
             // Verificar la conexión
             const collections = await mongoose.connection.db.listCollections().toArray();
             console.log('Colecciones disponibles:', collections.map(c => c.name));
             
         } catch (err) {
-            console.error('❌ Error conectando a MongoDB:', err.message);
+            console.error(' Error al conectar con MongoDB:', err.message);
             retries++;
             
             if (retries < maxRetries) {
                 console.log(`Reintentando conexión (${retries}/${maxRetries}) en 5 segundos...`);
                 setTimeout(tryConnect, 5000);
             } else {
-                console.error('❌ Número máximo de reintentos alcanzado. No se pudo conectar a MongoDB.');
+                console.error(' Número máximo de reintentos alcanzado. No se pudo conectar a MongoDB.');
                 process.exit(1); // Terminar la aplicación si no se puede conectar
             }
         }
