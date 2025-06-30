@@ -196,4 +196,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 2000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor escuchando en el puerto ${PORT}`);
+    console.log(`🌐 URL: http://localhost:${PORT}`);
 });
