@@ -1,3 +1,7 @@
+// Detectar si estamos en desarrollo o producción
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const baseURL = isDevelopment ? 'http://localhost:2000' : window.location.origin;
+
 document.addEventListener("DOMContentLoaded", () => {
   // Elementos del DOM - Sidebar
   const sidebar = document.getElementById("sidebar")
@@ -117,17 +121,17 @@ async function mostrarNombreUsuario() {
   async function cargarDatosUsuario() {
     try {
       // Cargar favoritos
-      const responseFavoritos = await fetch('http://localhost:2000/api/favoritos')
+      const responseFavoritos = await fetch(`${baseURL}/api/favoritos`)
       const dataFavoritos = await responseFavoritos.json()
       cancionesFavoritas = dataFavoritos.favoritos || []
 
       // Cargar listas
-      const responseListas = await fetch('http://localhost:2000/api/listas')
+      const responseListas = await fetch(`${baseURL}/api/listas`)
       const dataListas = await responseListas.json()
       listasUsuario = dataListas.listas || []
 
       // Cargar historial
-      const responseHistorial = await fetch('http://localhost:2000/api/historial')
+      const responseHistorial = await fetch(`${baseURL}/api/historial`)
       const dataHistorial = await responseHistorial.json()
       historialReproduccion = dataHistorial.historial || []
 
@@ -279,7 +283,7 @@ async function mostrarNombreUsuario() {
 
     try {
         console.log('Enviando búsqueda:', terminoBusqueda);
-        const response = await fetch(`http://localhost:2000/api/buscar?q=${encodeURIComponent(terminoBusqueda)}`, {
+        const response = await fetch(`${baseURL}/api/buscar?q=${encodeURIComponent(terminoBusqueda)}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'

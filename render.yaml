@@ -14,4 +14,12 @@ services:
       - key: CLIENT_URL
         sync: false
     healthCheckPath: /
-    autoDeploy: true 
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - package.json
+        - package-lock.json
+        - server.js
+        - routes/**
+        - Modelo/**
+        - public/** 

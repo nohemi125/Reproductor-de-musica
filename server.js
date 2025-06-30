@@ -27,9 +27,9 @@ if (missingEnvVars.length > 0) {
 
 // Middleware
 app.use(cors({
-    origin: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' 
-        ? ['https://tu-app.railway.app', 'http://localhost:2000'] 
-        : true),
+    origin: process.env.NODE_ENV === 'production'
+        ? 'https://reproductor-de-musica-2.onrender.com'
+        : ['http://localhost:2000', 'http://127.0.0.1:2000'],
     credentials: true
 }));
 app.use(express.json());
@@ -176,12 +176,14 @@ app.get('/login', (req, res) => {
 // Manejo de errores 404
 app.use((req, res) => {
     console.log('Ruta no encontrada:', req.method, req.url);
+    console.log('Headers:', req.headers);
     res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
 // Manejo de errores generales
 app.use((err, req, res, next) => {
     console.error('Error en el servidor:', err);
+    console.error('Stack trace:', err.stack);
     res.status(500).json({ error: 'Error interno del servidor' });
 });
 

@@ -1,5 +1,9 @@
 const loginForm = document.getElementById('loginForm');
 
+// Detectar si estamos en desarrollo o producción
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const baseURL = isDevelopment ? 'http://localhost:2000' : window.location.origin;
+
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -7,7 +11,7 @@ loginForm.addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
 
     try {
-        const response = await fetch('http://localhost:2000/api/auth/login', {
+        const response = await fetch(`${baseURL}/api/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,4 +1,6 @@
-
+// Detectar si estamos en desarrollo o producción
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const baseURL = isDevelopment ? 'http://localhost:2000' : window.location.origin;
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('loginForm');
@@ -12,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             console.log('Enviando solicitud de registro...');
-            const response = await fetch('http://localhost:2000/api/auth/registro', {
+            const response = await fetch(`${baseURL}/api/auth/registro`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
